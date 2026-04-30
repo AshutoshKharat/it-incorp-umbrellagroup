@@ -49,6 +49,135 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ── DESKTOP DROPDOWN HOVER + PROXIMITY ─────────────────────
+    const desktopNavMedia = window.matchMedia('(min-width: 992px)');
+    const navbarDropdownItems = document.querySelectorAll('#mainNav .navbar-nav .nav-item.dropdown');
+
+    if (navbarDropdownItems.length) {
+        let pointerX = -1;
+        let pointerY = -1;
+        const closeTimers = new WeakMap();
+
+        const clearCloseTimer = (item) => {
+            const timerId = closeTimers.get(item);
+            if (timerId) {
+                clearTimeout(timerId);
+                closeTimers.delete(item);
+            }
+        };
+
+        const getInteractiveRect = (item) => {
+            const toggle = item.querySelector(':scope > .dropdown-toggle');
+            const menu = item.querySelector(':scope > .dropdown-menu');
+            if (!toggle || !menu) return null;
+
+            const toggleRect = toggle.getBoundingClientRect();
+            const menuRect = menu.getBoundingClientRect();
+            const proximityPadding = 26;
+
+            return {
+                left: Math.min(toggleRect.left, menuRect.left) - proximityPadding,
+                right: Math.max(toggleRect.right, menuRect.right) + proximityPadding,
+                top: Math.min(toggleRect.top, menuRect.top) - proximityPadding,
+                bottom: Math.max(toggleRect.bottom, menuRect.bottom) + proximityPadding
+            };
+        };
+
+        const isPointerNearDropdown = (item) => {
+            if (pointerX < 0 || pointerY < 0) return false;
+
+            const bounds = getInteractiveRect(item);
+            if (!bounds) return false;
+
+            return (
+                pointerX >= bounds.left &&
+                pointerX <= bounds.right &&
+                pointerY >= bounds.top &&
+                pointerY <= bounds.bottom
+            );
+        };
+
+        const hideDropdown = (item) => {
+            const toggle = item.querySelector(':scope > .dropdown-toggle');
+            if (!toggle) return;
+
+            const dropdown = bootstrap.Dropdown.getOrCreateInstance(toggle);
+            dropdown.hide();
+        };
+
+        const showDropdown = (item) => {
+            if (!desktopNavMedia.matches) return;
+
+            const toggle = item.querySelector(':scope > .dropdown-toggle');
+            if (!toggle) return;
+
+            navbarDropdownItems.forEach((otherItem) => {
+                if (otherItem !== item) {
+                    clearCloseTimer(otherItem);
+                    hideDropdown(otherItem);
+                }
+            });
+
+            clearCloseTimer(item);
+            const dropdown = bootstrap.Dropdown.getOrCreateInstance(toggle);
+            dropdown.show();
+        };
+
+        const scheduleHideDropdown = (item) => {
+            clearCloseTimer(item);
+
+            const timerId = window.setTimeout(() => {
+                if (!desktopNavMedia.matches) return;
+
+                if (isPointerNearDropdown(item)) {
+                    scheduleHideDropdown(item);
+                    return;
+                }
+
+                hideDropdown(item);
+            }, 140);
+
+            closeTimers.set(item, timerId);
+        };
+
+        document.addEventListener('pointermove', (event) => {
+            pointerX = event.clientX;
+            pointerY = event.clientY;
+        }, { passive: true });
+
+        navbarDropdownItems.forEach((item) => {
+            const toggle = item.querySelector(':scope > .dropdown-toggle');
+            const menu = item.querySelector(':scope > .dropdown-menu');
+            if (!toggle || !menu) return;
+
+            item.addEventListener('mouseenter', () => {
+                showDropdown(item);
+            });
+
+            item.addEventListener('mouseleave', () => {
+                scheduleHideDropdown(item);
+            });
+
+            menu.addEventListener('mouseenter', () => {
+                clearCloseTimer(item);
+                showDropdown(item);
+            });
+
+            menu.addEventListener('mouseleave', () => {
+                scheduleHideDropdown(item);
+            });
+        });
+
+        desktopNavMedia.addEventListener('change', (event) => {
+            if (event.matches) return;
+
+            navbarDropdownItems.forEach((item) => {
+                clearCloseTimer(item);
+                hideDropdown(item);
+            });
+        });
+    }
+
     // ── SUBSIDIARY DROPDOWN TABS ───────────────────────────────
     const subsidiaryDropdown = document.querySelector('.subsidiary-dropdown');
     const subsidiaryToggle = document.querySelector('.dropdown-mega > .dropdown-toggle');
