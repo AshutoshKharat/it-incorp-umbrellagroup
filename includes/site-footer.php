@@ -56,7 +56,6 @@
             ['icon' => 'bi-quora', 'label' => 'Quora', 'url' => 'https://viotxsspace.quora.com/?invite_code=jlY6GoHLBL1xKsRoC0RA'],
         ];
         ?>
-        ?>
 
         <div class="row g-4 align-items-start">
 
